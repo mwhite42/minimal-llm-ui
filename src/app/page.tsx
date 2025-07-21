@@ -9,20 +9,22 @@ import { SaveIcon } from "@/components/icons/save-icon";
 import { TrashIcon } from "@/components/icons/trash-icon";
 import Sidebar from "@/components/sidebar";
 import { cn } from "@/utils/cn";
-import { baseUrl, fallbackModel } from "@/utils/constants";
+import { baseUrl, fallbackModel, vectorSearchBaseUrl } from "@/utils/constants";
 import generateRandomString from "@/utils/generateRandomString";
 import { useCycle } from "framer-motion";
 import { ChatOllama } from "langchain/chat_models/ollama";
-import { AIMessage, HumanMessage } from "langchain/schema";
+import { AIMessage, HumanMessage, SystemMessage } from "langchain/schema";
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AppModal, useModal } from "./context/ModalContext";
 import { usePrompts } from "./context/PromptContext";
+import { useSystemInstruction } from "./context/SystemInstructionContext";
 
 export default function Home() {
   const { setModalConfig } = useModal();
   const { activePromptTemplate, setActivePromptTemplate } = usePrompts();
+  const { activeSystemInstruction } = useSystemInstruction();
   const [newPrompt, setNewPrompt] = useState("");
   const [messages, setMessages] = useState<
     {
@@ -106,7 +108,35 @@ export default function Home() {
     });
   }
 
-  async function triggerPrompt(input: string = newPrompt) {
+  async function performVectorSearch(query: string) {
+    try {
+      const response = await fetch(`${vectorSearchBaseUrl}/v1.0/vector/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          query: query,
+          document_guid: "f49f92f7-8cdf-4f44-b327-0519e2aad881",
+          limit: 5
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Vector search failed:', response.statusText);
+        return null;
+      }
+
+      const data = await response.json();
+      return data.results;
+    } catch (error) {
+      console.error('Error performing vector search:', error);
+      return null;
+    }
+}
+
+async function triggerPrompt(input: string = newPrompt) {
     if (!ollama) return;
     scrollToBottom();
     if (messages.length == 0) getName(input);
@@ -120,13 +150,38 @@ export default function Home() {
     let streamedText = "";
     messages.push(msg);
     const msgCache = [...messages];
-    const stream = await ollama.stream(
-      messages.map((m) =>
-        m.type == "human"
-          ? new HumanMessage(m.content)
-          : new AIMessage(m.content),
-      ),
-    );
+
+    // First perform vector search
+    const vectorSearchResults = await performVectorSearch(input);
+
+    // Prepare context from vector search results
+    let contextFromVectorSearch = "";
+    if (vectorSearchResults && vectorSearchResults.length > 0) {
+      contextFromVectorSearch = "Context from vector search:\n" + 
+        vectorSearchResults.map((result: any) => result.content).join("\n") + 
+        "\n\nUser query: " + input;
+    } else {
+      contextFromVectorSearch = input;
+    }
+
+    // Use the context in the request to Ollama
+    // Add system instruction at the beginning of the messages array
+    const messagesWithSystemInstruction = [
+      new SystemMessage(activeSystemInstruction.content),
+      ...messages.map((m, index) => {
+        if (index === messages.length - 1 && m.type === "human") {
+          // Replace the last human message with the context-enhanced version
+          return new HumanMessage(contextFromVectorSearch);
+        } else {
+          return m.type === "human" 
+            ? new HumanMessage(m.content) 
+            : new AIMessage(m.content);
+        }
+      })
+    ];
+
+    const stream = await ollama.stream(messagesWithSystemInstruction);
+
     setNewPrompt("");
     setActivePromptTemplate(undefined);
     let updatedMessages = [...msgCache];
@@ -206,13 +261,35 @@ export default function Home() {
     const model = activeModel;
     let streamedText = "";
     const msgCache = [...filtered];
-    const stream = await ollama.stream(
-      filtered.map((m) =>
-        m.type == "human"
-          ? new HumanMessage(m.content)
-          : new AIMessage(m.content),
-      ),
-    );
+
+    // Get the last human message for vector search
+    const lastHumanMessage = filtered.filter(m => m.type === "human").pop();
+    let vectorSearchResults = null;
+
+    if (lastHumanMessage) {
+      // Perform vector search with the last human message
+      vectorSearchResults = await performVectorSearch(lastHumanMessage.content);
+    }
+
+    // Prepare the messages for Ollama, including vector search results if available
+    const messagesForOllama = [
+      new SystemMessage(activeSystemInstruction.content),
+      ...filtered.map((m, index) => {
+        if (index === filtered.length - 1 && m.type === "human" && vectorSearchResults && vectorSearchResults.length > 0) {
+          // Enhance the last human message with vector search results
+          const contextFromVectorSearch = "Context from vector search:\n" + 
+            vectorSearchResults.map((result: any) => result.content).join("\n") + 
+            "\n\nUser query: " + m.content;
+          return new HumanMessage(contextFromVectorSearch);
+        } else {
+          return m.type === "human" 
+            ? new HumanMessage(m.content) 
+            : new AIMessage(m.content);
+        }
+      })
+    ];
+
+    const stream = await ollama.stream(messagesForOllama);
     setNewPrompt("");
     let updatedMessages = [...msgCache];
     let c = 0;
