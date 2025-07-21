@@ -264,7 +264,7 @@ async function triggerPrompt(input: string = newPrompt) {
 
     // Get the last human message for vector search
     const lastHumanMessage = filtered.filter(m => m.type === "human").pop();
-    let vectorSearchResults = null;
+    let vectorSearchResults: any[] | null = null;
 
     if (lastHumanMessage) {
       // Perform vector search with the last human message
