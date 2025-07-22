@@ -20,6 +20,21 @@ import remarkGfm from "remark-gfm";
 import { AppModal, useModal } from "./context/ModalContext";
 import { usePrompts } from "./context/PromptContext";
 import { useSystemInstruction } from "./context/SystemInstructionContext";
+import { getSystemInstructionById } from "@/utils/systemInstructions";
+
+// Define the DocumentEntry type to match the one in app-navbar.tsx
+type DocumentEntry = {
+  filename: string;
+  guid: string;
+  selected?: boolean;
+};
+
+declare global {
+  interface Window {
+    setDocumentValues?: ((filename: string, guid: string) => void) | 
+                        ((documents: DocumentEntry[] | DocumentEntry) => void);
+  }
+}
 
 export default function Home() {
   const { setModalConfig } = useModal();
@@ -43,6 +58,7 @@ export default function Home() {
   >([]);
   const [activeConversation, setActiveConversation] = useState<string>("");
   const [menuState, toggleMenuState] = useCycle(false, true);
+  const [selectedDocuments, setSelectedDocuments] = useState<DocumentEntry[]>([]);
   const msgContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,18 +126,46 @@ export default function Home() {
 
   async function performVectorSearch(query: string) {
     try {
-      const response = await fetch(`${vectorSearchBaseUrl}/v1.0/vector/search`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          query: query,
-          document_guid: "f49f92f7-8cdf-4f44-b327-0519e2aad881",
-          limit: 5
-        })
-      });
+      // Check if there are any selected documents
+      const selectedDocs = selectedDocuments.filter(doc => doc.selected);
+
+      let response;
+
+      if (selectedDocs.length > 0) {
+        // If documents are selected, use /vector/search API with document_guids
+        const document_guids = selectedDocs.map(doc => doc.guid);
+
+        console.log(`Using /vector/search API with ${document_guids.length} selected documents`);
+
+        response = await fetch(`${vectorSearchBaseUrl}/v1.0/vector/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            query: query,
+            document_guids: document_guids,
+            limit: 10
+          })
+        });
+      } else {
+        // If no documents are selected, use /vector/router/search API
+        console.log('Using /vector/router/search API (no documents selected)');
+
+        response = await fetch(`${vectorSearchBaseUrl}/v1.0/vector/router/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            query: query,
+            document_guid: "f49f92f7-8cdf-4f44-b327-0519e2aad881",
+            limit: 5
+          })
+        });
+      }
 
       if (!response.ok) {
         console.error('Vector search failed:', response.statusText);
@@ -157,6 +201,19 @@ async function triggerPrompt(input: string = newPrompt) {
     // Prepare context from vector search results
     let contextFromVectorSearch = "";
     if (vectorSearchResults && vectorSearchResults.length > 0) {
+      // Update Document dropdown with all results
+      if (window.setDocumentValues) {
+        // Convert vector search results to DocumentEntry array
+        const documentEntries: DocumentEntry[] = vectorSearchResults.map((result: any) => ({
+          filename: decodeURIComponent(result.object_key),
+          guid: result.document_guid,
+          selected: true
+        }));
+
+        // Pass all document entries to the dropdown
+        window.setDocumentValues(documentEntries);
+      }
+
       contextFromVectorSearch = "Context from vector search:\n" + 
         vectorSearchResults.map((result: any) => result.content).join("\n") + 
         "\n\nUser query: " + input;
@@ -166,8 +223,16 @@ async function triggerPrompt(input: string = newPrompt) {
 
     // Use the context in the request to Ollama
     // Add system instruction at the beginning of the messages array
+    // If no documents are selected, use the Concise system instruction
+    const selectedDocs = selectedDocuments.filter(doc => doc.selected);
+    const systemInstruction = selectedDocs.length === 0
+      ? getSystemInstructionById("concise") || activeSystemInstruction
+      : activeSystemInstruction;
+
+    console.log(`Using ${systemInstruction.name} system instruction`);
+
     const messagesWithSystemInstruction = [
-      new SystemMessage(activeSystemInstruction.content),
+      new SystemMessage(systemInstruction.content),
       ...messages.map((m, index) => {
         if (index === messages.length - 1 && m.type === "human") {
           // Replace the last human message with the context-enhanced version
@@ -269,11 +334,32 @@ async function triggerPrompt(input: string = newPrompt) {
     if (lastHumanMessage) {
       // Perform vector search with the last human message
       vectorSearchResults = await performVectorSearch(lastHumanMessage.content);
+
+      // Update Document dropdown with all results
+      if (vectorSearchResults && vectorSearchResults.length > 0 && window.setDocumentValues) {
+        // Convert vector search results to DocumentEntry array
+        const documentEntries: DocumentEntry[] = vectorSearchResults.map((result: any) => ({
+          filename: decodeURIComponent(result.object_key),
+          guid: result.document_guid,
+          selected: true
+        }));
+
+        // Pass all document entries to the dropdown
+        window.setDocumentValues(documentEntries);
+      }
     }
 
     // Prepare the messages for Ollama, including vector search results if available
+    // If no documents are selected, use the Concise system instruction
+    const selectedDocs = selectedDocuments.filter(doc => doc.selected);
+    const systemInstruction = selectedDocs.length === 0
+      ? getSystemInstructionById("concise") || activeSystemInstruction
+      : activeSystemInstruction;
+
+    console.log(`Using ${systemInstruction.name} system instruction`);
+
     const messagesForOllama = [
-      new SystemMessage(activeSystemInstruction.content),
+      new SystemMessage(systemInstruction.content),
       ...filtered.map((m, index) => {
         if (index === filtered.length - 1 && m.type === "human" && vectorSearchResults && vectorSearchResults.length > 0) {
           // Enhance the last human message with vector search results
@@ -329,7 +415,7 @@ async function triggerPrompt(input: string = newPrompt) {
     });
     return nameOllama!
       .predict(
-        "You're a tool, that receives an input and responds exclusively with a 2-5 word summary of the topic (and absolutely no prose) based specifically on the words used in the input (not the expected output). Each word in the summary should be carefully chosen so that it's perfecly informative - and serve as a perfect title for the input. Now, return the summary for the following input:\n" +
+        "You're a tool, that receives an input and responds exclusively with a 2-5 word summary of the topic for the HPE Partner Portal (and absolutely no prose) based specifically on the words used in the input (not the expected output). Each word in the summary should be carefully chosen so that it's perfecly informative - and serve as a perfect title for the input. Now, return the summary for the following input:\n" +
           input,
       )
       .then((name) => name);
@@ -358,6 +444,26 @@ async function triggerPrompt(input: string = newPrompt) {
           availableModels={availableModels}
           setActiveModel={setActiveModel}
           setOllama={setOllama}
+          setDocumentValues={(documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => {
+            if (typeof documents === 'string' && guid) {
+              // Legacy format - create a single document entry
+              const newEntry: DocumentEntry = {
+                filename: documents as string,
+                guid: guid as string,
+                selected: true
+              };
+              setSelectedDocuments([newEntry]);
+              console.log("Document values set (legacy):", documents, guid);
+            } else if (Array.isArray(documents)) {
+              // Array of documents
+              setSelectedDocuments(documents);
+              console.log("Document values set (array):", documents);
+            } else {
+              // Single document object
+              setSelectedDocuments([documents as DocumentEntry]);
+              console.log("Document values set (object):", documents);
+            }
+          }}
         />
         <div className="flex w-full flex-1 flex-shrink flex-col items-center justify-end gap-y-4 overflow-hidden whitespace-break-spaces">
           <div className="flex w-full flex-1 flex-col items-center justify-end gap-y-4 overflow-scroll whitespace-break-spaces">
