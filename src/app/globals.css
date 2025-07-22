@@ -32,12 +32,12 @@
 
 body {
   color: var(--hpe-gray-dark);
-  background: var(--hpe-white);
+  background: var(--hpe-gray-light);
 }
 
 /* Main chat container - add padding for white chat area */
 main {
-  background-color: var(--hpe-white);
+  background-color: var(--hpe-gray-light);
 }
 
 /* Override black backgrounds with HPE white */

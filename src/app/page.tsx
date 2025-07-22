@@ -284,7 +284,7 @@ return (
         setActiveModel={setActiveModel}
         setOllama={setOllama}
       />
-      <div className="flex-1 overflow-hidden bg-white">
+      <div className="flex-1 overflow-hidden bg-(--hpe-gray-lightest)">
         <div className="flex h-full flex-col">
           <div
             ref={msgContainerRef}
@@ -313,7 +313,7 @@ return (
                           "max-w-[70%] rounded-lg px-4 py-3",
                           msg.type === "human"
                             ? "bg-[#01a982] text-white"
-                            : "bg-gray-100 text-gray-800"
+                            : "bg-white text-gray-800"
                         )}
                       >
                         <div className="mb-1 flex items-center gap-2">
