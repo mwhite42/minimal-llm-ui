@@ -203,15 +203,15 @@ export default function AppNavbar({
                 onClick={() => setIsDocumentMenuOpen(!isDocumentMenuOpen)}
               >
                 <span>
-                  {documentEntries.length > 0 
-                    ? `${documentEntries.filter(entry => entry.selected).length} selected` 
+                  {documentEntries.length > 0
+                    ? `${documentEntries.filter(entry => entry.selected).length} selected`
                     : "None"}
                 </span>
-                <svg 
-                  className="ml-1 h-4 w-4" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
+                <svg
+                  className="ml-1 h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -268,11 +268,11 @@ export default function AppNavbar({
                 onClick={() => setIsSystemMenuOpen(!isSystemMenuOpen)}
               >
                 <span>{activeSystemInstruction.name}</span>
-                <svg 
-                  className="ml-1 h-4 w-4" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
+                <svg
+                  className="ml-1 h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -304,18 +304,18 @@ export default function AppNavbar({
                           className="ml-2 p-1 rounded-full hover:bg-white/10"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setModalConfig({ 
+                            setModalConfig({
                               modal: AppModal.EDIT_SYSTEM_INSTRUCTION,
                               data: instruction
                             });
                             setIsSystemMenuOpen(false);
                           }}
                         >
-                          <svg 
-                            className="h-3 w-3" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24" 
+                          <svg
+                            className="h-3 w-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -348,5 +348,24 @@ export default function AppNavbar({
         </div>
       </nav>
     </>
+return (
+    <nav className="sticky top-0 z-40 border-b bg-white shadow-sm">
+      <div className="flex h-14 items-center justify-between px-4 md:px-8">
+        <div className="flex items-center gap-4 ml-4">
+          <input
+            className="rounded-lg bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 outline-none placeholder-gray-400 transition-colors hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-[#01a982] focus:ring-opacity-50"
+            placeholder="Untitled Conversation"
+            value={documentName}
+            onChange={handleInputChange}
+          />
+        </div>
+        <button
+          className="rounded-lg border border-[#01a982] bg-white px-4 py-1.5 text-sm font-medium text-[#01a982] transition-all hover:bg-[#01a982] hover:text-white"
+          onClick={toggleModel}
+        >
+          {activeModel || "Select Model"}
+        </button>
+      </div>
+    </nav>
   );
 }
