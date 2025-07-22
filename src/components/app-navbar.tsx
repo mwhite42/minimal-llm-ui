@@ -73,27 +73,24 @@ export default function AppNavbar({
   const shareMenuRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  return (
-    <>
-      <nav className="sticky left-0 top-0 z-20 w-full border-b border-white/10 bg-black">
-        <div className="mx-auto flex flex-wrap items-center justify-between px-20 py-2.5">
-          <div className="flex space-x-8">
-            <input
-              className="w-64 ring-none flex cursor-text items-center gap-x-2 rounded-md border-transparent bg-transparent px-2 py-1 text-xs font-medium text-white outline-none placeholder:text-white/80 hover:bg-white/10 "
-              placeholder="Untitled"
-              value={documentName}
-              onChange={handleInputChange}
-            ></input>
-          </div>
-          <button
-            className="cursor-pointer text-xs text-white transition-colors hover:bg-white/10 rounded-md px-2 py-1"
-            contentEditable={false}
-            onClick={toggleModel}
-          >
-            {activeModel}
-          </button>
+return (
+    <nav className="sticky top-0 z-40 border-b bg-white shadow-sm">
+      <div className="flex h-14 items-center justify-between px-4 md:px-8">
+        <div className="flex items-center gap-4 ml-4">
+          <input
+            className="rounded-lg bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 outline-none placeholder-gray-400 transition-colors hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-[#01a982] focus:ring-opacity-50"
+            placeholder="Untitled Conversation"
+            value={documentName}
+            onChange={handleInputChange}
+          />
         </div>
-      </nav>
-    </>
+        <button
+          className="rounded-lg border border-[#01a982] bg-white px-4 py-1.5 text-sm font-medium text-[#01a982] transition-all hover:bg-[#01a982] hover:text-white"
+          onClick={toggleModel}
+        >
+          {activeModel || "Select Model"}
+        </button>
+      </div>
+    </nav>
   );
 }

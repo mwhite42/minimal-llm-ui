@@ -258,165 +258,166 @@ export default function Home() {
       .then((name) => name);
   }
 
-  return (
-    <main className="relative flex max-h-screen min-h-screen w-screen max-w-[100vw] items-center justify-between overflow-hidden">
-      <Sidebar
-        activeConversation={activeConversation}
-        conversations={conversations}
-        menuState={menuState}
-        setActiveConversation={setActiveConversation}
-        setConversations={setConversations}
-        setMessages={setMessages}
-        setNewPrompt={setNewPrompt}
-        toggleMenuState={toggleMenuState}
+return (
+  <main className="relative flex h-screen w-screen items-stretch overflow-hidden bg-[#f7f7f7]">
+    <Sidebar
+      activeConversation={activeConversation}
+      conversations={conversations}
+      menuState={menuState}
+      setActiveConversation={setActiveConversation}
+      setConversations={setConversations}
+      setMessages={setMessages}
+      setNewPrompt={setNewPrompt}
+      toggleMenuState={toggleMenuState}
+    />
+    <div
+      className={cn(
+        "flex flex-1 flex-col transition-all duration-300 ease-in-out",
+        menuState ? "ml-80" : "ml-0"
+      )}
+    >
+      <AppNavbar
+        documentName={activeConversation}
+        setDocumentName={() => {}}
+        activeModel={activeModel}
+        availableModels={availableModels}
+        setActiveModel={setActiveModel}
+        setOllama={setOllama}
       />
-      <div
-        className="flex max-h-screen min-h-screen w-full flex-col"
-        style={{ maxWidth: "calc(100vw - " + (menuState ? 20 : 0) + "rem)" }}
-      >
-        <AppNavbar
-          documentName={activeConversation}
-          setDocumentName={() => {}}
-          activeModel={activeModel}
-          availableModels={availableModels}
-          setActiveModel={setActiveModel}
-          setOllama={setOllama}
-        />
-        <div className="flex w-full flex-1 flex-shrink flex-col items-center justify-end gap-y-4 overflow-hidden whitespace-break-spaces">
-          <div className="flex w-full flex-1 flex-col items-center justify-end gap-y-4 overflow-scroll whitespace-break-spaces">
-            <div
-              ref={msgContainerRef}
-              className="block h-fit w-full flex-col items-center justify-center gap-y-1 overflow-scroll rounded-md p-2"
-            >
-              {messages.map((msg) => (
-                <div
-                  key={"message-" + msg.id}
-                  className={cn(
-                    "flex h-fit max-w-[80%] cursor-pointer flex-col items-start gap-y-1 rounded-md px-2 py-1",
-                    { "ml-auto": msg.type == "human" },
-                    { "mr-auto": msg.type == "ai" },
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "flex h-fit max-w-full cursor-pointer flex-col items-center gap-y-1 rounded-md border border-[#191919] px-2 py-1",
-                      { "ml-auto": msg.type == "human" },
-                      { "mr-auto": msg.type == "ai" },
-                    )}
-                  >
-                    <p className="mr-auto text-xs text-white/50">
-                      {(msg?.model?.split(":")[0] || "user") +
-                        " • " +
-                        new Date(msg.timestamp).toLocaleDateString() +
-                        " " +
-                        new Date(msg.timestamp).toLocaleTimeString()}
-                    </p>
-                    <Markdown
-                      remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
-                      className={
-                        "mr-auto flex w-full flex-col text-sm text-white"
-                      }
-                    >
-                      {msg.content.trim()}
-                    </Markdown>
-                  </div>
-                  <div
-                    className={cn(
-                      "my-2 flex gap-x-1",
-                      { "ml-auto": msg.type == "human" },
-                      { "mr-auto": msg.type == "ai" },
-                    )}
-                  >
-                    {msg.type == "human" && (
-                      <SaveIcon
-                        onClick={() => {
-                          setModalConfig({
-                            modal: AppModal.SAVE_PROMPT,
-                            data: msg,
-                          });
-                        }}
-                        className="h-4 w-4 fill-white/50 hover:fill-white/90"
-                      />
-                    )}
-                    <RefreshIcon
-                      onClick={() => refreshMessage(msg)}
-                      className="h-4 w-4 fill-white/50 hover:fill-white/90"
-                    />
-                    <CopyIcon
-                      onClick={() => {
-                        navigator.clipboard.writeText(msg.content);
-                      }}
-                      className="h-4 w-4 fill-white/50 hover:fill-white/90"
-                    />
-                    <TrashIcon
-                      onClick={() => {
-                        deleteMessage(msg);
-                      }}
-                      className="h-4 w-4 fill-white/50 hover:fill-white/90"
-                    />
+      <div className="flex-1 overflow-hidden bg-white">
+        <div className="flex h-full flex-col">
+          <div
+            ref={msgContainerRef}
+            className="flex-1 overflow-y-auto px-4 py-6 md:px-8"
+          >
+            <div className="mx-auto max-w-4xl">
+              {messages.length === 0 ? (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <h2 className="mb-2 text-2xl font-semibold text-gray-700">Welcome to your personal AI Assistant</h2>
+                    <p className="text-gray-500">Start a conversation to begin</p>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((msg) => (
+                    <div
+                      key={"message-" + msg.id}
+                      className={cn(
+                        "group relative flex gap-3",
+                        msg.type === "human" ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "max-w-[70%] rounded-lg px-4 py-3",
+                          msg.type === "human"
+                            ? "bg-[#01a982] text-white"
+                            : "bg-gray-100 text-gray-800"
+                        )}
+                      >
+                        <div className="mb-1 flex items-center gap-2">
+                          <span className="text-xs opacity-70">
+                            {msg?.model?.split(":")[0] || "You"} •{" "}
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <Markdown
+                          remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
+                          className="prose prose-sm max-w-none"
+                        >
+                          {msg.content.trim()}
+                        </Markdown>
+                        <div className="mt-2 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                          {msg.type === "human" && (
+                            <SaveIcon
+                              onClick={() => {
+                                setModalConfig({
+                                  modal: AppModal.SAVE_PROMPT,
+                                  data: msg,
+                                });
+                              }}
+                              className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                            />
+                          )}
+                          <RefreshIcon
+                            onClick={() => refreshMessage(msg)}
+                            className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                          />
+                          <CopyIcon
+                            onClick={() => {
+                              navigator.clipboard.writeText(msg.content);
+                            }}
+                            className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                          />
+                          <TrashIcon
+                            onClick={() => {
+                              deleteMessage(msg);
+                            }}
+                            className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t bg-white px-4 py-4 md:px-8">
+            <div className="mx-auto max-w-4xl">
+              <CommandMenu
+                showMenu={
+                  !activePromptTemplate &&
+                  !!newPrompt &&
+                  newPrompt.startsWith("/") &&
+                  newPrompt == "/" + newPrompt.replace(/[^a-zA-Z0-9_]/g, "")
+                }
+                filterString={newPrompt.substring(1)}
+              />
+              <div className="relative">
+                {activePromptTemplate ? (
+                  <CommandTextInput
+                    onKeyDown={(x) => {
+                      if (
+                        x.e.key === "Enter" &&
+                        !x.e.metaKey &&
+                        !x.e.shiftKey &&
+                        !x.e.altKey &&
+                        newPrompt !== ""
+                      ) {
+                        triggerPrompt(x.input);
+                      }
+                    }}
+                  />
+                ) : (
+                  <ExpandingTextInput
+                    onChange={(e: any) => {
+                      if (e.target.value != "\n") setNewPrompt(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        !e.metaKey &&
+                        !e.shiftKey &&
+                        !e.altKey &&
+                        newPrompt !== ""
+                      ) {
+                        triggerPrompt();
+                      }
+                    }}
+                    value={newPrompt}
+                    placeholder="Send a message"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 placeholder-gray-500 focus:border-[#01a982] focus:outline-none focus:ring-2 focus:ring-[#01a982] focus:ring-opacity-50"
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="flex flex-col gap-y-2 px-4">
-          <CommandMenu
-            showMenu={
-              !activePromptTemplate &&
-              !!newPrompt &&
-              newPrompt.startsWith("/") &&
-              newPrompt == "/" + newPrompt.replace(/[^a-zA-Z0-9_]/g, "")
-            }
-            filterString={newPrompt.substring(1)}
-          />
-          {/* TODO: Include Active Prompt Template when selected above so we know what's beind done or insert placeholder input as it's being populated */}
-          <div className="mb-4 flex max-h-[200px] min-h-[56px] w-full flex-shrink-0 resize-none appearance-none overflow-hidden rounded-md text-sm font-normal text-white outline-0 focus:outline-0 focus:ring-white/10 md:flex">
-            {activePromptTemplate ? (
-              <>
-                <CommandTextInput
-                  onKeyDown={(x) => {
-                    if (
-                      x.e.key === "Enter" &&
-                      !x.e.metaKey &&
-                      !x.e.shiftKey &&
-                      !x.e.altKey &&
-                      newPrompt !== ""
-                    ) {
-                      triggerPrompt(x.input);
-                    }
-                  }}
-                />
-              </>
-            ) : (
-              <ExpandingTextInput
-                onChange={(e: any) => {
-                  if (e.target.value != "\n") setNewPrompt(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    !e.metaKey &&
-                    !e.shiftKey &&
-                    !e.altKey &&
-                    newPrompt !== ""
-                  ) {
-                    triggerPrompt();
-                  } else if (
-                    e.key === "Enter" &&
-                    (e.metaKey || !e.shiftKey || !e.altKey)
-                  ) {
-                    // console.log(e);
-                  }
-                }}
-                value={newPrompt}
-                placeholder="Send a message"
-              />
-            )}
-          </div>
-        </div>
       </div>
-    </main>
-  );
+    </div>
+  </main>
+);
 }
