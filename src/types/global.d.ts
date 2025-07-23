@@ -1,3 +1,10 @@
+// Define the DocumentEntry type
+type DocumentEntry = {
+  filename: string;
+  guid: string;
+  selected?: boolean;
+};
+
 interface Window {
-  setDocumentValues: (filename: string, guid: string) => void;
+  setDocumentValues?: (filenameOrDocuments: string | DocumentEntry[] | DocumentEntry, guid?: string) => void;
 }

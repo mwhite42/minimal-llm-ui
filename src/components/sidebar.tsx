@@ -22,10 +22,18 @@ type Props = {
   ) => void;
   setActiveConversation: (title: string) => void;
   setNewPrompt: (newPrompt: string) => void;
+  clearDocuments: () => void;
+  setDocumentEntries?: (documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => void;
   conversations: { title: string; filePath: string }[];
   activeConversation: string;
   menuState: boolean;
   toggleMenuState: Cycle;
+};
+
+type DocumentEntry = {
+  filename: string;
+  guid: string;
+  selected?: boolean;
 };
 
 export default function Sidebar({
@@ -33,6 +41,8 @@ export default function Sidebar({
   setConversations,
   setActiveConversation,
   setNewPrompt,
+  clearDocuments,
+  setDocumentEntries,
   conversations,
   activeConversation,
   menuState,
@@ -75,6 +85,10 @@ export default function Sidebar({
     setMessages([]);
     setActiveConversation("");
     setNewPrompt("");
+    clearDocuments();
+    if (setDocumentEntries) {
+      setDocumentEntries([]);
+    }
     toggleMenuState();
   }
 

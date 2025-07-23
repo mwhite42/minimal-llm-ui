@@ -29,12 +29,7 @@ type DocumentEntry = {
   selected?: boolean;
 };
 
-declare global {
-  interface Window {
-    setDocumentValues?: ((filename: string, guid: string) => void) |
-                        ((documents: DocumentEntry[] | DocumentEntry) => void);
-  }
-}
+// This is now defined in global.d.ts
 
 export default function Home() {
   const { setModalConfig } = useModal();
@@ -162,7 +157,7 @@ export default function Home() {
           body: JSON.stringify({
             query: query,
             document_guid: "f49f92f7-8cdf-4f44-b327-0519e2aad881",
-            limit: 5
+            limit: 1
           })
         });
       }
@@ -222,7 +217,7 @@ export default function Home() {
     }
 
     // Use the context in the request to Ollama
-    // Add system instruction at the beginning of the messages array
+    // Add system instruction at the beginning of the message array
     // If no documents are selected, use the Concise system instruction
     const selectedDocs = selectedDocuments.filter(doc => doc.selected);
     const systemInstruction = selectedDocs.length === 0
@@ -416,7 +411,7 @@ export default function Home() {
     });
     return nameOllama!
       .predict(
-        "You're a tool, that receives an input and responds exclusively with a 2-5 word summary of the topic for the HPE Partner Portal (and absolutely no prose) based specifically on the words used in the input (not the expected output). Each word in the summary should be carefully chosen so that it's perfecly informative - and serve as a perfect title for the input. Now, return the summary for the following input:\n" +
+        "You're a tool, that receives an input and responds exclusively with a 2-5 word summary of the topic for the HPE Partner Portal (and absolutely no prose) based specifically on the words used in the input (not the expected output). Each word in the summary should be carefully chosen so that it's perfectly informative - and serve as a perfect title for the input. Now, return the summary for the following input:\n" +
         input,
       )
       .then((name) => name);
@@ -432,6 +427,24 @@ export default function Home() {
         setConversations={setConversations}
         setMessages={setMessages}
         setNewPrompt={setNewPrompt}
+        clearDocuments={() => setSelectedDocuments([])}
+        setDocumentEntries={(documents) => {
+          if (Array.isArray(documents) && documents.length === 0) {
+            setSelectedDocuments([]);
+          } else if (typeof documents === 'string' && arguments.length > 1) {
+            const guid = arguments[1];
+            const newEntry = {
+              filename: documents,
+              guid: guid,
+              selected: true
+            };
+            setSelectedDocuments([newEntry]);
+          } else if (Array.isArray(documents)) {
+            setSelectedDocuments(documents);
+          } else {
+            setSelectedDocuments([documents]);
+          }
+        }}
         toggleMenuState={toggleMenuState}
       />
       <div
@@ -473,8 +486,10 @@ export default function Home() {
                 {messages.length === 0 ? (
                   <div className="flex h-full items-center justify-center">
                     <div className="text-center">
-                      <h2 className="mb-2 text-2xl font-semibold text-gray-700">Welcome to your personal AI Assistant</h2>
-                      <p className="text-gray-500">Start a conversation to begin</p>
+                      <h2 className="mb-2 text-2xl font-semibold text-gray-700">Welcome to the HPE Partner Portal AI Assistant</h2>
+                      <p className="text-gray-500">Start a conversation to begin by telling us what system your interested in getting some information about. </p>
+                      <p className="text-gray-500">That will help the system narrow down the scope and provide the best responses</p>
+                      <p className="text-gray-500">You can then select which documents you wish to research from the navigation above</p>
                     </div>
                   </div>
                 ) : (
