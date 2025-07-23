@@ -50,7 +50,20 @@ export default function Home() {
   const [activeConversation, setActiveConversation] = useState<string>("");
   const [menuState, toggleMenuState] = useCycle(false, true);
   const [selectedDocuments, setSelectedDocuments] = useState<DocumentEntry[]>([]);
+  const [filteredDocuments, setFilteredDocuments] = useState<DocumentEntry[]>([]);
   const msgContainerRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  console.log("All selectedDocuments:", selectedDocuments);
+  console.log("Documents with selected=true:", selectedDocuments.filter(doc => doc.selected === true));
+  console.log("Documents with selected=false:", selectedDocuments.filter(doc => doc.selected === false));
+  console.log("Documents with selected=undefined:", selectedDocuments.filter(doc => doc.selected === undefined));
+  
+  // Filter to show only selected documents in the right panel
+  const selected = selectedDocuments.filter(doc => doc.selected === true);
+  setFilteredDocuments(selected);
+  console.log("Setting filteredDocuments to:", selected);
+}, [selectedDocuments]);
 
   useEffect(() => {
     scrollToBottom();
@@ -68,58 +81,71 @@ export default function Home() {
   }, []);
 
   // Function to handle document values from vector search
-  function setupWindowDocumentValues() {
+function setupWindowDocumentValues() {
+  // @ts-ignore
+  window.setDocumentValues = (documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => {
+    console.log('window.setDocumentValues called with:', documents);
+
+    if (typeof documents === 'string' && guid) {
+      const newEntry: DocumentEntry = {
+        filename: documents,
+        guid: guid,
+        selected: true
+      };
+      setSelectedDocuments(prevDocs => {
+        // Remove any existing document with the same guid first
+        const filtered = prevDocs.filter(doc => doc.guid !== guid);
+        return [...filtered, newEntry];
+      });
+    } else if (Array.isArray(documents)) {
+      setSelectedDocuments(prevDocs => {
+        // Create a map of existing documents
+        const existingMap = new Map(prevDocs.map(doc => [doc.guid, doc]));
+        
+        // Update or add new documents
+        documents.forEach(newDoc => {
+          existingMap.set(newDoc.guid, { ...newDoc, selected: true });
+        });
+        
+        return Array.from(existingMap.values());
+      });
+    } else if (typeof documents === 'object') {
+      const doc = documents as DocumentEntry;
+      setSelectedDocuments(prevDocs => {
+        // Remove any existing document with the same guid first
+        const filtered = prevDocs.filter(d => d.guid !== doc.guid);
+        return [...filtered, { ...doc, selected: true }];
+      });
+    }
+  };
+
+  return () => {
     // @ts-ignore
-    window.setDocumentValues = (documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => {
-      console.log('window.setDocumentValues called with:', documents);
-
-      if (typeof documents === 'string' && guid) {
-        // Legacy support: single document with filename and guid
-        const newEntry: DocumentEntry = {
-          filename: documents,
-          guid: guid,
-          selected: true
-        };
-        setSelectedDocuments(prevDocs => {
-          const exists = prevDocs.some(doc => doc.guid === guid);
-          if (!exists) {
-            return [...prevDocs, newEntry];
-          }
-          return prevDocs;
-        });
-      } else if (Array.isArray(documents)) {
-        // New format: array of DocumentEntry objects
-        setSelectedDocuments(prevDocs => {
-          const existingGuids = new Set(prevDocs.map(doc => doc.guid));
-          const newDocs = documents.filter(doc => !existingGuids.has(doc.guid));
-          return [...prevDocs, ...newDocs];
-        });
-      } else if (typeof documents === 'object') {
-        // Single DocumentEntry object
-        const doc = documents as DocumentEntry;
-        setSelectedDocuments(prevDocs => {
-          const exists = prevDocs.some(d => d.guid === doc.guid);
-          if (!exists) {
-            return [...prevDocs, { ...doc, selected: true }];
-          }
-          return prevDocs;
-        });
-      }
-    };
-
-    return () => {
-      // @ts-ignore
-      delete window.setDocumentValues;
-    };
-  }
+    delete window.setDocumentValues;
+  };
+}
 
   function getInitialModel() {
     fetch(`${baseUrl}/api/tags`)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
+        console.log("Available models from API:", data);
+
+        if (!data.models || data.models.length === 0) {
+          console.error("No models available from Ollama");
+          return;
+        }
+
         setAvailableModels(data.models);
 
         const storedModel = localStorage.getItem("initialLocalLM");
+        let modelToUse = null;
+
         if (
           storedModel &&
           storedModel !== "" &&
@@ -128,20 +154,37 @@ export default function Home() {
               m.name.toLowerCase() === storedModel.toLowerCase(),
           ) > -1
         ) {
-          setActiveModel(storedModel);
+          modelToUse = storedModel;
+        } else {
+          modelToUse = data.models[0]?.name;
+        }
+
+        console.log("Setting active model to:", modelToUse);
+        setActiveModel(modelToUse);
+
+        if (modelToUse) {
           const newOllama = new ChatOllama({
             baseUrl: baseUrl,
-            model: storedModel,
+            model: modelToUse,
           });
+          console.log("Created Ollama instance:", newOllama);
           setOllama(newOllama);
-        } else {
-          setActiveModel(data.models[0]?.name);
-          const initOllama = new ChatOllama({
-            baseUrl: baseUrl,
-            model: data.models[0]?.name,
-          });
-          setOllama(initOllama);
         }
+      })
+      .catch((error) => {
+        console.error("Error fetching models:", error);
+        // Set a fallback model if the API fails
+        const fallbackModelName = fallbackModel || "llama2";
+        console.log("Using fallback model:", fallbackModelName);
+
+        setActiveModel(fallbackModelName);
+        setAvailableModels([{ name: fallbackModelName }]);
+
+        const newOllama = new ChatOllama({
+          baseUrl: baseUrl,
+          model: fallbackModelName,
+        });
+        setOllama(newOllama);
       });
   }
 
@@ -210,6 +253,9 @@ export default function Home() {
   }
 
   async function triggerPrompt(input: string = newPrompt) {
+    console.log("triggerPrompt called with:", input);
+    console.log("ollama:", ollama);
+    console.log("activeModel:", activeModel);
 
     if (!ollama) {
       console.error("Ollama is not initialized!");
@@ -235,11 +281,16 @@ export default function Home() {
     const model = activeModel;
     let streamedText = "";
 
+    // Update messages state properly
     const msgCache = [...messages, msg];
     setMessages(msgCache);
 
+    console.log("Messages after push:", msgCache);
+
     // First perform vector search
+    console.log("Performing vector search...");
     const vectorSearchResults = await performVectorSearch(input);
+    console.log("Vector search results:", vectorSearchResults);
 
     // Prepare context from vector search results
     let contextFromVectorSearch = "";
@@ -510,14 +561,13 @@ export default function Home() {
           setActiveModel={setActiveModel}
           setOllama={setOllama}
           selectedDocuments={selectedDocuments}
-          onDocumentToggle={(index: number) => {
-            setSelectedDocuments(prevDocs =>
-              prevDocs.map((doc, i) =>
-                i === index
-                  ? { ...doc, selected: !doc.selected }
-                  : doc
-              )
-            );
+          onDocumentToggle={(index) => {
+            const updatedDocuments = [...selectedDocuments];
+            updatedDocuments[index] = {
+              ...updatedDocuments[index],
+              selected: updatedDocuments[index].selected === false ? true : false
+            };
+            setSelectedDocuments(updatedDocuments);
           }}
         />
 
@@ -646,6 +696,7 @@ export default function Home() {
                             !e.altKey &&
                             newPrompt !== ""
                           ) {
+                            e.preventDefault(); // Add this line
                             triggerPrompt();
                           }
                         }}
@@ -663,39 +714,48 @@ export default function Home() {
           {/* Documents Panel - Always visible */}
           <div className="w-80 bg-white shadow-lg border-l border-gray-200 flex flex-col">
             <div className="p-4 border-b bg-gray-50">
-              <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Selected Documents</h3>
               <p className="text-sm text-gray-600 mt-1">
-                {selectedDocuments.length > 0
-                  ? `${selectedDocuments.filter(e => e.selected).length} of ${selectedDocuments.length} selected`
-                  : 'No documents available'
+                {filteredDocuments.length > 0
+                  ? `${filteredDocuments.length} document${filteredDocuments.length > 1 ? 's' : ''} selected`
+                  : 'No documents selected'
                 }
               </p>
             </div>
 
             {/* Documents List */}
             <div className="flex-1 overflow-y-auto p-4">
-              {selectedDocuments.length > 0 ? (
+              {filteredDocuments.length > 0 ? (
                 <div className="space-y-2">
-                  {selectedDocuments.map((entry, index) => (
-                    <div key={entry.guid} className="flex items-start p-3 hover:bg-gray-50 rounded-md transition-colors">
-                      <input
-                        type="checkbox"
-                        id={`doc-${index}`}
-                        checked={entry.selected !== false}
-                        onChange={() => {
-                          const updatedDocuments = [...selectedDocuments];
-                          updatedDocuments[index] = {
-                            ...updatedDocuments[index],
-                            selected: !updatedDocuments[index].selected
-                          };
+                  {filteredDocuments.map((entry) => (
+                    <div key={entry.guid} className="p-2 group relative flex items-start">
+                      {/* Document Icon */}
+                      <svg className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+
+                      {/* Document Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 break-words">{entry.filename}</div>
+                        {/* <div className="text-xs text-gray-500 mt-1">ID: {entry.guid.substring(0, 8)}...</div> */}
+                      </div>
+
+                      {/* Remove button */}
+                      <button
+                        onClick={() => {
+                          const updatedDocuments = selectedDocuments.map(doc =>
+                            doc.guid === entry.guid
+                              ? { ...doc, selected: false }
+                              : doc
+                          );
                           setSelectedDocuments(updatedDocuments);
                         }}
-                        className="mt-1 h-4 w-4 text-[#01a982] rounded border-gray-300 focus:ring-[#01a982]"
-                      />
-                      <label htmlFor={`doc-${index}`} className="ml-3 flex-1 cursor-pointer">
-                        <div className="text-sm font-medium text-gray-900 break-words">{entry.filename}</div>
-                        <div className="text-xs text-gray-500 mt-1">ID: {entry.guid.substring(0, 8)}...</div>
-                      </label>
+                        className="p-1 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                      >
+                        <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -704,7 +764,8 @@ export default function Home() {
                   <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <p className="text-sm text-gray-500 font-medium">No documents available</p>
+                  <p className="text-sm text-gray-500 font-medium">No documents selected</p>
+                  <p className="text-xs text-gray-400 mt-2">Select documents from the dropdown above</p>
                 </div>
               )}
             </div>
