@@ -19,7 +19,8 @@ type Props = {
   availableModels: any[];
   setActiveModel: Function;
   setOllama: Function;
-  setDocumentValues?: (documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => void; // Function to set document entries
+  selectedDocuments: DocumentEntry[];
+  onDocumentToggle: (index: number) => void;
 };
 
 export default function AppNavbar({
@@ -29,13 +30,11 @@ export default function AppNavbar({
   availableModels,
   setActiveModel,
   setOllama,
-  setDocumentValues,
+  selectedDocuments,
+  onDocumentToggle,
 }: Props) {
-  const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
   const [isDocumentMenuOpen, setIsDocumentMenuOpen] = useState(false);
-  const [documentEntries, setDocumentEntries] = useState<DocumentEntry[]>([]);
   const { activeSystemInstruction, allSystemInstructions, setActiveSystemInstructionById } = useSystemInstruction();
   const { setModalConfig } = useModal();
 
@@ -44,27 +43,11 @@ export default function AppNavbar({
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
-    setDocumentName(value); // Call the callback function to update the parent component
+    setDocumentName(value);
   };
 
   useEffect(() => {
     const handleDocumentClick = (event: any) => {
-      if (
-        isShareMenuOpen &&
-        shareMenuRef.current &&
-        !shareMenuRef.current.contains(event.target)
-      ) {
-        setIsShareMenuOpen(false);
-      }
-
-      if (
-        isProfileMenuOpen &&
-        profileMenuRef.current &&
-        !profileMenuRef.current.contains(event.target)
-      ) {
-        setIsProfileMenuOpen(false);
-      }
-
       if (
         isSystemMenuOpen &&
         systemMenuRef.current &&
@@ -87,7 +70,7 @@ export default function AppNavbar({
     return () => {
       document.removeEventListener("click", handleDocumentClick);
     };
-  }, [isShareMenuOpen, isProfileMenuOpen, isSystemMenuOpen, isDocumentMenuOpen]);
+  }, [isSystemMenuOpen, isDocumentMenuOpen]);
 
   function toggleModel() {
     const i =
@@ -99,157 +82,74 @@ export default function AppNavbar({
       baseUrl: baseUrl,
       model: availableModels[i]?.name,
     });
-    //store in local storage
     localStorage.setItem("initialLocalLM", availableModels[i]?.name);
     setOllama(newOllama);
   }
 
-  // Function to set document entries
-  function setDocumentValuesInternal(documents: DocumentEntry[] | DocumentEntry) {
-    console.log('setDocumentValuesInternal called with:', documents);
-
-    // Handle both single document and array of documents
-    if (Array.isArray(documents)) {
-      // Filter out duplicates based on guid
-      setDocumentEntries(prevEntries => {
-        // Create a map of existing entries by guid for quick lookup
-        const existingEntriesMap = new Map(
-          prevEntries.map(entry => [entry.guid, entry])
-        );
-
-        // Process each new document
-        documents.forEach(doc => {
-          // Only add if it doesn't exist already
-          if (!existingEntriesMap.has(doc.guid)) {
-            existingEntriesMap.set(doc.guid, { ...doc, selected: true });
-          }
-        });
-
-        // Convert map back to array
-        return Array.from(existingEntriesMap.values());
-      });
-    } else {
-      // If it's a single document, add it to the array if it doesn't exist already
-      setDocumentEntries(prevEntries => {
-        const exists = prevEntries.some(entry => entry.guid === documents.guid);
-        if (!exists) {
-          return [...prevEntries, { ...documents, selected: true }];
-        }
-        return prevEntries;
-      });
-    }
-
-    // Call the prop function if provided
-    if (setDocumentValues) {
-      console.log('Calling parent setDocumentValues function');
-      setDocumentValues(documents);
-    } else {
-      console.log('Parent setDocumentValues function not provided');
-    }
-  }
-
-  // For backward compatibility - handle single document
-  function setDocumentValuesSingle(filename: string, guid: string) {
-    const newEntry: DocumentEntry = { filename, guid, selected: true };
-    setDocumentValuesInternal(newEntry);
-  }
-
-  // Expose the function to the window object for external access
-  useEffect(() => {
-    console.log('Setting up window.setDocumentValues');
-
-    // For backward compatibility, we need to handle both the new and old function signatures
-    // @ts-ignore
-    window.setDocumentValues = (filenameOrDocuments: string | DocumentEntry[], guid?: string) => {
-      if (typeof filenameOrDocuments === 'string' && guid) {
-        // Old signature: (filename: string, guid: string)
-        setDocumentValuesSingle(filenameOrDocuments, guid);
-      } else {
-        // New signature: (documents: DocumentEntry[] | DocumentEntry)
-        // @ts-ignore
-        setDocumentValuesInternal(filenameOrDocuments);
-      }
-    };
-
-    console.log('window.setDocumentValues is now:', typeof window.setDocumentValues);
-
-    return () => {
-      console.log('Cleaning up window.setDocumentValues');
-      // @ts-ignore
-      delete window.setDocumentValues;
-    };
-  }, []);
-
-  const shareMenuRef = useRef<HTMLDivElement>(null);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-
   return (
     <nav className="sticky top-0 z-40 border-b bg-white shadow-sm">
-      <div className="flex h-14 items-center justify-between px-4 md:px-8">
-        <div className="flex items-center gap-4 ml-4">
-          <input
-            className="rounded-lg bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 outline-none placeholder-gray-400 transition-colors hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-[#01a982] focus:ring-opacity-50"
-            placeholder="Untitled Conversation"
-            value={documentName}
-            onChange={handleInputChange}
-          />
+      <header className="chat-header ml-10">
+        <div className="logo-container">
+          <img src="/Hewlett_Packard_Enterprise_logo.svg" alt="Hewlett Packard Enterprise" className="logo" />
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center relative" ref={documentMenuRef}>
-            <span className="mr-2 text-xs text-gray-600">Document:</span>
+        <h1 className="header-title flex-1 text-center">Interactive Partner Portal (demo)</h1>
+
+        {/* HPE POC Badge */}
+        <div>
+          <span className="text-xs font-medium text-[var(--hpe-green)]">HPE POC</span>
+        </div>
+      </header>
+
+      {/* Controls */}
+      <div className="bg-gray-20 flex justify-end p-2 border-t">
+        <div className="flex items-center gap-4">
+          {/* Document Dropdown */}
+          <div className="relative" ref={documentMenuRef}>
             <button
-              className="flex items-center text-xs text-gray-700 hover:bg-gray-100 rounded-md px-2 py-1"
+              className="flex items-center rounded-md bg-gray-50 px-3 py-1.5 text-sm
+               hover:bg-gray-100 hover:text-gray-700 transition-colors"
               onClick={() => setIsDocumentMenuOpen(!isDocumentMenuOpen)}
             >
-              <span>
-                {documentEntries.length > 0
-                  ? `${documentEntries.filter(entry => entry.selected).length} selected`
-                  : "None"}
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="text-xs">
+                {selectedDocuments.length > 0
+                  ? `${selectedDocuments.filter(d => d.selected !== false).length} documents`
+                  : "No documents"}
               </span>
-              <svg
-                className="ml-1 h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {isDocumentMenuOpen && (
-              <div className="absolute top-full left-0 mt-1 w-64 rounded-md shadow-lg bg-white border border-gray-200 z-50 max-h-80 overflow-y-auto">
+              <div className="absolute top-full right-0 mt-1 w-64 rounded-md shadow-lg bg-white border border-gray-200 z-50 max-h-80 overflow-y-auto">
                 <div className="py-1">
-                  {documentEntries.length > 0 ? (
-                    documentEntries.map((entry, index) => (
-                      <div key={entry.guid} className="px-4 py-2 text-xs text-gray-700 hover:bg-gray-100">
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`document-${index}`}
-                            checked={entry.selected}
-                            onChange={() => {
-                              const updatedEntries = [...documentEntries];
-                              updatedEntries[index] = {
-                                ...updatedEntries[index],
-                                selected: !updatedEntries[index].selected
-                              };
-                              setDocumentEntries(updatedEntries);
-
-                              // Call the prop function to update parent component state
-                              if (setDocumentValues) {
-                                setDocumentValues(updatedEntries);
-                              }
-                            }}
-                            className="mr-2"
-                          />
-                          <label htmlFor={`document-${index}`} className="flex-1 cursor-pointer">
-                            <div className="font-medium">{entry.filename}</div>
-                            <div className="text-gray-600 text-xs truncate">{entry.guid}</div>
+                  {selectedDocuments.length > 0 ? (
+                    <>
+                      <div className="px-4 py-2 border-b border-gray-200">
+                        <p className="text-xs text-gray-600">
+                          {selectedDocuments.filter(d => d.selected !== false).length} of {selectedDocuments.length} selected
+                        </p>
+                      </div>
+                      {selectedDocuments.map((doc, index) => (
+                        <div key={doc.guid} className="px-4 py-2 hover:bg-gray-50">
+                          <label className="flex items-start cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={doc.selected !== false}
+                              onChange={() => onDocumentToggle(index)}
+                              className="mt-0.5 h-4 w-4 text-[#01a982] rounded border-gray-300 focus:ring-[#01a982]"
+                            />
+                            <div className="ml-3 flex-1">
+                              <div className="text-xs font-medium text-gray-900 break-words">{doc.filename}</div>
+                              <div className="text-xs text-gray-500">ID: {doc.guid.substring(0, 8)}...</div>
+                            </div>
                           </label>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </>
                   ) : (
                     <div className="px-4 py-2 text-xs text-gray-600">
                       No documents available
@@ -260,35 +160,32 @@ export default function AppNavbar({
             )}
           </div>
 
-          <div className="flex items-center relative" ref={systemMenuRef}>
-            <span className="mr-2 text-xs text-gray-600">System:</span>
+          {/* System Instruction Dropdown */}
+          <div className="relative" ref={systemMenuRef}>
             <button
-              className="flex items-center text-xs text-gray-700 hover:bg-gray-100 rounded-md px-2 py-1"
+              className="flex items-center rounded-md bg-gray-50 px-3 py-1.5 text-sm hover:text-gray-700 transition-colors hover:bg-gray-100"
               onClick={() => setIsSystemMenuOpen(!isSystemMenuOpen)}
             >
-              <span>{activeSystemInstruction.name}</span>
-              <svg
-                className="ml-1 h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-xs">{activeSystemInstruction.name}</span>
+              <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {isSystemMenuOpen && (
-              <div className="absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg bg-white border border-gray-200 z-50">
+              <div className="absolute top-full right-0 mt-1 w-48 rounded-md shadow-lg bg-white border border-gray-200 z-50">
                 <div className="py-1">
                   {allSystemInstructions.map((instruction) => (
                     <div
                       key={instruction.id}
-                      className={`flex items-center justify-between px-4 py-2 text-xs ${
-                        instruction.id === activeSystemInstruction.id
-                          ? "bg-gray-100 text-gray-700"
-                          : "text-gray-600 hover:bg-gray-50"
-                      }`}
+                      className={`flex items-center justify-between px-4 py-2 text-xs ${instruction.id === activeSystemInstruction.id
+                        ? "bg-gray-100 text-gray-700"
+                        : "text-gray-600 hover:bg-gray-50"
+                        }`}
                     >
                       <button
                         className="flex-grow text-left"
@@ -300,7 +197,7 @@ export default function AppNavbar({
                         {instruction.name}
                       </button>
                       <button
-                        className="ml-2 p-1 rounded-full hover:bg-gray-50"
+                        className="ml-2 p-1 rounded-full hover:bg-gray-200"
                         onClick={(e) => {
                           e.stopPropagation();
                           setModalConfig({
@@ -324,7 +221,7 @@ export default function AppNavbar({
                   ))}
                   <hr className="my-1 border-gray-200" />
                   <button
-                    className="block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50"
+                    className="block w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-[var(--hpe-green)]]"
                     onClick={() => {
                       setModalConfig({ modal: AppModal.ADD_SYSTEM_INSTRUCTION });
                       setIsSystemMenuOpen(false);
@@ -337,12 +234,15 @@ export default function AppNavbar({
             )}
           </div>
 
+          {/* Model selector */}
           <button
-            className="rounded-lg border border-[#01a982] bg-white px-4 py-1.5 text-sm font-medium text-[#01a982] transition-all hover:bg-[#01a982] hover:text-white"
+            className="rounded-md bg-[#01a982] px-4 py-1.5 text-sm font-medium !text-white transition-all hover:bg-[#00896a]"
             onClick={toggleModel}
           >
             {activeModel || "Select Model"}
           </button>
+
+
         </div>
       </div>
     </nav>

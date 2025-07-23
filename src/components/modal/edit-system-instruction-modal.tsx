@@ -48,67 +48,117 @@ export default function EditSystemInstructionModal() {
     visible: { opacity: 1 },
   };
 
+  const modalVariant = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        type: "spring",
+        damping: 25,
+        stiffness: 300
+      }
+    },
+  };
+
   return (
     <div className="relative z-[9999]">
       <motion.div
         variants={bgVariant}
-        initial={"hidden"}
-        animate={"visible"}
-        exit={"hidden"}
-        className="fixed inset-0 bg-[#000000]/20 backdrop-blur-md transition-opacity"
+        initial="hidden"
+        animate="visible"
+        exit="hidden"
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
+        onClick={closeModal}
       />
 
       <div className="fixed inset-0 z-10 overflow-y-auto">
-        <div
-          onClick={() => closeModal()}
-          className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0"
-        >
-          <div
+        <div className="flex min-h-full items-center justify-center p-4">
+          <motion.div
+            variants={modalVariant}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
             onClick={(e) => e.stopPropagation()}
-            className="bg-white/black relative flex max-h-[80vh] transform flex-col overflow-hidden rounded-sm border border-white/20 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl"
+            className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden"
           >
-            <div className="rounded-sm bg-black">
-              <motion.div
-                layout
-                className="flex flex-col gap-y-2 rounded-sm bg-black p-2 text-sm text-white"
-              >
-                <div>{"Edit System Instruction"}</div>
-                <hr className="border-white/10" />
-                
-                <div className="mb-2">
-                  <label className="block text-white/50 mb-1">Instruction Name</label>
-                  <ExpandingTextInput
-                    onChange={(e: any) => {saveInstructionName(e)}}
+            {/* Modal Header */}
+            <div className="bg-white px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Edit System Instruction
+                </h3>
+                <button
+                  onClick={closeModal}
+                  className="rounded-lg p-2 hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-6 py-4">
+              <div className="space-y-4">
+                {/* Instruction Name Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Instruction Name
+                  </label>
+                  <input
+                    type="text"
                     value={instructionName}
-                    placeholder={"Enter Instruction Name..."}
-                    expand={false}
+                    onChange={saveInstructionName}
+                    placeholder="Enter instruction name..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01a982] focus:border-[#01a982] transition-colors"
                   />
                 </div>
-                
-                <div className="mb-2">
-                  <label className="block text-white/50 mb-1">Instruction Content</label>
-                  <ExpandingTextInput
-                    onChange={(e: any) => {handleContentChange(e)}}
+
+                {/* Instruction Content Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Instruction Content
+                  </label>
+                  <textarea
                     value={content}
-                    placeholder={"Enter system instruction content..."}
-                    expand={true}
+                    onChange={handleContentChange}
+                    placeholder="Enter system instruction content..."
+                    rows={8}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#01a982] focus:border-[#01a982] transition-colors resize-none"
                   />
+                  <p className="mt-2 text-sm text-gray-500">
+                    {content.length} characters
+                  </p>
                 </div>
-                
-                <hr className="border-white/10" />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={closeModal}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
                 <button
                   disabled={!content || content.length === 0 || instructionName.length === 0}
                   onClick={saveInstruction}
-                  className={cn("rounded-sm px-2 py-1 text-black", {
-                    "bg-white": content && content.length > 0 && instructionName.length > 0,
-                    "bg-white/50": content.length === 0 || instructionName.length === 0,
-                  })}
+                  className={cn(
+                    "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                    content && content.length > 0 && instructionName.length > 0
+                      ? "bg-[#01a982] text-white hover:bg-[#00896a]"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  )}
                 >
-                  {"Save Changes"}
+                  Save Changes
                 </button>
-              </motion.div>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
