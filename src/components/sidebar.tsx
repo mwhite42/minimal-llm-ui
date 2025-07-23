@@ -98,7 +98,7 @@ export default function Sidebar({
       <motion.div
         className="absolute top-4 z-50"
         animate={{
-          left: menuState ? sidebarWidth + 16 : 16, // 16px base padding from left
+          left: menuState ? sidebarWidth + 16 : 16, 
         }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
@@ -107,7 +107,7 @@ export default function Sidebar({
 
       {/* Sidebar container with animated width */}
       <motion.div
-        className="fixed left-0 top-0 h-full bg-white shadow-lg overflow-hidden"
+        className="fixed left-15 top-0 h-full bg-white shadow-lg overflow-hidden"
         initial={false}
         animate={{ width: menuState ? sidebarWidth : 0 }}
         style={{ zIndex: 40 }}

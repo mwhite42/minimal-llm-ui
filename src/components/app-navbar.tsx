@@ -102,7 +102,16 @@ export default function AppNavbar({
 
       {/* Controls */}
       <div className="bg-gray-20 flex justify-end p-2 border-t">
+         {/* Document Name */}
+          <input
+            type="text"
+            value={documentName}
+            onChange={handleInputChange}
+            placeholder="Document Name"
+            className="w-60 text-xs px-2 py-2 bg-gray-100 rounded focus:ring-1 focus:ring-[#01a982] focus:border-[var(--hpe-green)] transition-colors mr-auto ml-12"
+          />
         <div className="flex items-center gap-4">
+         
           {/* Document Dropdown */}
           <div className="relative" ref={documentMenuRef}>
             <button

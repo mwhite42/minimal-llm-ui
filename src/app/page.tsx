@@ -53,17 +53,17 @@ export default function Home() {
   const [filteredDocuments, setFilteredDocuments] = useState<DocumentEntry[]>([]);
   const msgContainerRef = useRef<HTMLDivElement>(null);
 
-useEffect(() => {
-  console.log("All selectedDocuments:", selectedDocuments);
-  console.log("Documents with selected=true:", selectedDocuments.filter(doc => doc.selected === true));
-  console.log("Documents with selected=false:", selectedDocuments.filter(doc => doc.selected === false));
-  console.log("Documents with selected=undefined:", selectedDocuments.filter(doc => doc.selected === undefined));
-  
-  // Filter to show only selected documents in the right panel
-  const selected = selectedDocuments.filter(doc => doc.selected === true);
-  setFilteredDocuments(selected);
-  console.log("Setting filteredDocuments to:", selected);
-}, [selectedDocuments]);
+  useEffect(() => {
+    console.log("All selectedDocuments:", selectedDocuments);
+    console.log("Documents with selected=true:", selectedDocuments.filter(doc => doc.selected === true));
+    console.log("Documents with selected=false:", selectedDocuments.filter(doc => doc.selected === false));
+    console.log("Documents with selected=undefined:", selectedDocuments.filter(doc => doc.selected === undefined));
+
+    // Filter to show only selected documents in the right panel
+    const selected = selectedDocuments.filter(doc => doc.selected === true);
+    setFilteredDocuments(selected);
+    console.log("Setting filteredDocuments to:", selected);
+  }, [selectedDocuments]);
 
   useEffect(() => {
     scrollToBottom();
@@ -81,49 +81,49 @@ useEffect(() => {
   }, []);
 
   // Function to handle document values from vector search
-function setupWindowDocumentValues() {
-  // @ts-ignore
-  window.setDocumentValues = (documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => {
-    console.log('window.setDocumentValues called with:', documents);
-
-    if (typeof documents === 'string' && guid) {
-      const newEntry: DocumentEntry = {
-        filename: documents,
-        guid: guid,
-        selected: true
-      };
-      setSelectedDocuments(prevDocs => {
-        // Remove any existing document with the same guid first
-        const filtered = prevDocs.filter(doc => doc.guid !== guid);
-        return [...filtered, newEntry];
-      });
-    } else if (Array.isArray(documents)) {
-      setSelectedDocuments(prevDocs => {
-        // Create a map of existing documents
-        const existingMap = new Map(prevDocs.map(doc => [doc.guid, doc]));
-        
-        // Update or add new documents
-        documents.forEach(newDoc => {
-          existingMap.set(newDoc.guid, { ...newDoc, selected: true });
-        });
-        
-        return Array.from(existingMap.values());
-      });
-    } else if (typeof documents === 'object') {
-      const doc = documents as DocumentEntry;
-      setSelectedDocuments(prevDocs => {
-        // Remove any existing document with the same guid first
-        const filtered = prevDocs.filter(d => d.guid !== doc.guid);
-        return [...filtered, { ...doc, selected: true }];
-      });
-    }
-  };
-
-  return () => {
+  function setupWindowDocumentValues() {
     // @ts-ignore
-    delete window.setDocumentValues;
-  };
-}
+    window.setDocumentValues = (documents: DocumentEntry[] | DocumentEntry | string, guid?: string) => {
+      console.log('window.setDocumentValues called with:', documents);
+
+      if (typeof documents === 'string' && guid) {
+        const newEntry: DocumentEntry = {
+          filename: documents,
+          guid: guid,
+          selected: true
+        };
+        setSelectedDocuments(prevDocs => {
+          // Remove any existing document with the same guid first
+          const filtered = prevDocs.filter(doc => doc.guid !== guid);
+          return [...filtered, newEntry];
+        });
+      } else if (Array.isArray(documents)) {
+        setSelectedDocuments(prevDocs => {
+          // Create a map of existing documents
+          const existingMap = new Map(prevDocs.map(doc => [doc.guid, doc]));
+
+          // Update or add new documents
+          documents.forEach(newDoc => {
+            existingMap.set(newDoc.guid, { ...newDoc, selected: true });
+          });
+
+          return Array.from(existingMap.values());
+        });
+      } else if (typeof documents === 'object') {
+        const doc = documents as DocumentEntry;
+        setSelectedDocuments(prevDocs => {
+          // Remove any existing document with the same guid first
+          const filtered = prevDocs.filter(d => d.guid !== doc.guid);
+          return [...filtered, { ...doc, selected: true }];
+        });
+      }
+    };
+
+    return () => {
+      // @ts-ignore
+      delete window.setDocumentValues;
+    };
+  }
 
   function getInitialModel() {
     fetch(`${baseUrl}/api/tags`)
@@ -513,265 +513,343 @@ function setupWindowDocumentValues() {
   }
 
   return (
-    <main className="relative flex h-screen w-screen items-stretch overflow-hidden bg-[#f7f7f7]">
-      <Sidebar
-        activeConversation={activeConversation}
-        conversations={conversations}
-        menuState={menuState}
-        setActiveConversation={setActiveConversation}
-        setConversations={setConversations}
-        setMessages={setMessages}
-        setNewPrompt={setNewPrompt}
-        clearDocuments={() => setSelectedDocuments([])}
-        setDocumentEntries={(documents) => {
-          if (Array.isArray(documents) && documents.length === 0) {
-            setSelectedDocuments([]);
-          } else if (typeof documents === 'string' && arguments.length > 1) {
-            const guid = arguments[1];
-            const newEntry = {
-              filename: documents,
-              guid: guid,
-              selected: true
-            };
-            setSelectedDocuments([newEntry]);
-          } else if (Array.isArray(documents)) {
-            setSelectedDocuments(documents);
-          } else {
-            if (typeof documents === 'string') {
-              console.error("Expected DocumentEntry, received string:", documents);
-              setSelectedDocuments([]);
-            } else {
-              setSelectedDocuments([documents]);
-            }
-          }
-        }}
-        toggleMenuState={toggleMenuState}
-      />
-      <div
-        className={cn(
-          "flex flex-1 flex-col transition-all duration-300 ease-in-out",
-          menuState ? "ml-80" : "ml-0"
-        )}
-      >
-        <AppNavbar
-          documentName={activeConversation}
-          setDocumentName={() => { }}
-          activeModel={activeModel}
-          availableModels={availableModels}
-          setActiveModel={setActiveModel}
-          setOllama={setOllama}
-          selectedDocuments={selectedDocuments}
-          onDocumentToggle={(index) => {
-            const updatedDocuments = [...selectedDocuments];
-            updatedDocuments[index] = {
-              ...updatedDocuments[index],
-              selected: updatedDocuments[index].selected === false ? true : false
-            };
-            setSelectedDocuments(updatedDocuments);
-          }}
-        />
+    <div className="flex h-screen w-screen overflow-hidden">
+      <div className="flex flex-col items-center w-16 bg-[#f7f7f7] border-r border-gray-200 py-4 z-10">
+        {/* Top section */}
+        <div className="flex flex-col items-center space-y-4 mb-8">
+          {/* Home icon (already correct) */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+          </button>
 
-        {/* Main content area with documents panel */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Chat area */}
-          <div className="flex-1 overflow-hidden bg-[#f7f7f7]">
-            <div className="flex h-full flex-col">
-              <div
-                ref={msgContainerRef}
-                className="flex-1 overflow-y-auto px-4 py-6 md:px-8"
-              >
-                <div className="mx-auto max-w-4xl">
-                  {messages.length === 0 ? (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center">
-                        <h2 className="mb-2 text-2xl font-semibold text-gray-700">Welcome to the HPE Partner Portal AI Assistant</h2>
-                        <p className="text-gray-500">Start a conversation to begin by telling us what system you're interested in getting some information about.</p>
-                        <p className="text-gray-500">That will help the system narrow down the scope and provide the best responses</p>
-                        <p className="text-gray-500">You can then select which documents you wish to research from the panel on the right</p>
+          {/* Archive/Box icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+          </button>
+
+          {/* Puzzle piece icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1"></div>
+
+        {/* Bottom section */}
+        <div className="flex flex-col items-center space-y-4">
+          {/* Target/Crosshair icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+
+          {/* Wrench/Tool icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+
+          {/* Link/Chain icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </button>
+
+          {/* Chart/Analytics icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </button>
+
+          {/* Document/Clipboard icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </button>
+
+          {/* Settings/Gear icon */}
+          <button className="p-3 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg className="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <main className="relative flex h-screen w-screen items-stretch overflow-hidden bg-[#f7f7f7]">
+        <Sidebar
+          activeConversation={activeConversation}
+          conversations={conversations}
+          menuState={menuState}
+          setActiveConversation={setActiveConversation}
+          setConversations={setConversations}
+          setMessages={setMessages}
+          setNewPrompt={setNewPrompt}
+          clearDocuments={() => setSelectedDocuments([])}
+          setDocumentEntries={(documents) => {
+            if (Array.isArray(documents) && documents.length === 0) {
+              setSelectedDocuments([]);
+            } else if (typeof documents === 'string' && arguments.length > 1) {
+              const guid = arguments[1];
+              const newEntry = {
+                filename: documents,
+                guid: guid,
+                selected: true
+              };
+              setSelectedDocuments([newEntry]);
+            } else if (Array.isArray(documents)) {
+              setSelectedDocuments(documents);
+            } else {
+              if (typeof documents === 'string') {
+                console.error("Expected DocumentEntry, received string:", documents);
+                setSelectedDocuments([]);
+              } else {
+                setSelectedDocuments([documents]);
+              }
+            }
+          }}
+          toggleMenuState={toggleMenuState}
+        />
+        <div
+          className={cn(
+            "flex flex-1 flex-col transition-all duration-300 ease-in-out",
+            menuState ? "ml-[320px]" : "ml-0"
+          )}
+        >
+          <AppNavbar
+            documentName={activeConversation}
+            setDocumentName={() => { }}
+            activeModel={activeModel}
+            availableModels={availableModels}
+            setActiveModel={setActiveModel}
+            setOllama={setOllama}
+            selectedDocuments={selectedDocuments}
+            onDocumentToggle={(index) => {
+              const updatedDocuments = [...selectedDocuments];
+              updatedDocuments[index] = {
+                ...updatedDocuments[index],
+                selected: updatedDocuments[index].selected === false ? true : false
+              };
+              setSelectedDocuments(updatedDocuments);
+            }}
+          />
+
+          {/* Main content area with documents panel */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* Chat area */}
+            <div className="flex-1 overflow-hidden bg-[#f7f7f7]">
+              <div className="flex h-full flex-col">
+                <div
+                  ref={msgContainerRef}
+                  className="flex-1 overflow-y-auto px-4 py-6 md:px-8"
+                >
+                  <div className="mx-auto max-w-4xl">
+                    {messages.length === 0 ? (
+                      <div className="flex h-full items-center justify-center">
+                        <div className="text-center">
+                          <h2 className="mb-2 text-2xl font-semibold text-gray-700">Welcome to the HPE Partner Portal AI Assistant</h2>
+                          <p className="text-gray-500">Start a conversation to begin by telling us what system you're interested in getting some information about.</p>
+                          <p className="text-gray-500">That will help the system narrow down the scope and provide the best responses</p>
+                          <p className="text-gray-500">You can then select which documents you wish to research from the panel on the right</p>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {messages.map((msg) => (
-                        <div
-                          key={"message-" + msg.id}
-                          className={cn(
-                            "group relative flex gap-3",
-                            msg.type === "human" ? "justify-end" : "justify-start"
-                          )}
-                        >
+                    ) : (
+                      <div className="space-y-4">
+                        {messages.map((msg) => (
                           <div
+                            key={"message-" + msg.id}
                             className={cn(
-                              "max-w-[70%] rounded-lg px-4 py-3",
-                              msg.type === "human"
-                                ? "bg-[#01a982] text-white"
-                                : "bg-white text-gray-800"
+                              "group relative flex gap-3",
+                              msg.type === "human" ? "justify-end" : "justify-start"
                             )}
                           >
-                            <div className="mb-1 flex items-center gap-2">
-                              <span className="text-xs opacity-70">
-                                {msg?.model?.split(":")[0] || "You"} •{" "}
-                                {new Date(msg.timestamp).toLocaleTimeString()}
-                              </span>
-                            </div>
-                            <Markdown
-                              remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
-                              className="prose prose-sm max-w-none"
+                            <div
+                              className={cn(
+                                "max-w-[70%] rounded-lg px-4 py-3",
+                                msg.type === "human"
+                                  ? "bg-[#01a982] text-white"
+                                  : "bg-white text-gray-800"
+                              )}
                             >
-                              {msg.content.trim()}
-                            </Markdown>
-                            <div className="mt-2 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                              {msg.type === "human" && (
-                                <SaveIcon
+                              <div className="mb-1 flex items-center gap-2">
+                                <span className="text-xs opacity-70">
+                                  {msg?.model?.split(":")[0] || "You"} •{" "}
+                                  {new Date(msg.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <Markdown
+                                remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
+                                className="prose prose-sm max-w-none"
+                              >
+                                {msg.content.trim()}
+                              </Markdown>
+                              <div className="mt-2 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                                {msg.type === "human" && (
+                                  <SaveIcon
+                                    onClick={() => {
+                                      setModalConfig({
+                                        modal: AppModal.SAVE_PROMPT,
+                                        data: msg,
+                                      });
+                                    }}
+                                    className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                                  />
+                                )}
+                                <RefreshIcon
+                                  onClick={() => refreshMessage(msg)}
+                                  className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                                />
+                                <CopyIcon
                                   onClick={() => {
-                                    setModalConfig({
-                                      modal: AppModal.SAVE_PROMPT,
-                                      data: msg,
-                                    });
+                                    navigator.clipboard.writeText(msg.content);
                                   }}
                                   className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
                                 />
-                              )}
-                              <RefreshIcon
-                                onClick={() => refreshMessage(msg)}
-                                className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
-                              />
-                              <CopyIcon
-                                onClick={() => {
-                                  navigator.clipboard.writeText(msg.content);
-                                }}
-                                className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
-                              />
-                              <TrashIcon
-                                onClick={() => {
-                                  deleteMessage(msg);
-                                }}
-                                className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
-                              />
+                                <TrashIcon
+                                  onClick={() => {
+                                    deleteMessage(msg);
+                                  }}
+                                  className="h-4 w-4 cursor-pointer fill-current opacity-60 hover:opacity-100"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t bg-white px-4 py-4 md:px-8">
-                <div className="mx-auto max-w-4xl">
-                  <CommandMenu
-                    showMenu={
-                      !activePromptTemplate &&
-                      !!newPrompt &&
-                      newPrompt.startsWith("/") &&
-                      newPrompt == "/" + newPrompt.replace(/[^a-zA-Z0-9_]/g, "")
-                    }
-                    filterString={newPrompt.substring(1)}
-                  />
-                  <div className="relative">
-                    {activePromptTemplate ? (
-                      <CommandTextInput
-                        onKeyDown={(x) => {
-                          if (
-                            x.e.key === "Enter" &&
-                            !x.e.metaKey &&
-                            !x.e.shiftKey &&
-                            !x.e.altKey &&
-                            newPrompt !== ""
-                          ) {
-                            triggerPrompt(x.input);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <ExpandingTextInput
-                        onChange={(e: any) => {
-                          if (e.target.value != "\n") setNewPrompt(e.target.value);
-                        }}
-                        onKeyDown={(e) => {
-                          if (
-                            e.key === "Enter" &&
-                            !e.metaKey &&
-                            !e.shiftKey &&
-                            !e.altKey &&
-                            newPrompt !== ""
-                          ) {
-                            e.preventDefault(); // Add this line
-                            triggerPrompt();
-                          }
-                        }}
-                        value={newPrompt}
-                        placeholder="Send a message"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 placeholder-gray-500 focus:border-[#01a982] focus:outline-none focus:ring-2 focus:ring-[#01a982] focus:ring-opacity-50"
-                      />
+                        ))}
+                      </div>
                     )}
+                  </div>
+                </div>
+
+                <div className="border-t bg-white px-4 py-4 md:px-8">
+                  <div className="mx-auto max-w-4xl">
+                    <CommandMenu
+                      showMenu={
+                        !activePromptTemplate &&
+                        !!newPrompt &&
+                        newPrompt.startsWith("/") &&
+                        newPrompt == "/" + newPrompt.replace(/[^a-zA-Z0-9_]/g, "")
+                      }
+                      filterString={newPrompt.substring(1)}
+                    />
+                    <div className="relative">
+                      {activePromptTemplate ? (
+                        <CommandTextInput
+                          onKeyDown={(x) => {
+                            if (
+                              x.e.key === "Enter" &&
+                              !x.e.metaKey &&
+                              !x.e.shiftKey &&
+                              !x.e.altKey &&
+                              newPrompt !== ""
+                            ) {
+                              triggerPrompt(x.input);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <ExpandingTextInput
+                          onChange={(e: any) => {
+                            if (e.target.value != "\n") setNewPrompt(e.target.value);
+                          }}
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === "Enter" &&
+                              !e.metaKey &&
+                              !e.shiftKey &&
+                              !e.altKey &&
+                              newPrompt !== ""
+                            ) {
+                              e.preventDefault(); // Add this line
+                              triggerPrompt();
+                            }
+                          }}
+                          value={newPrompt}
+                          placeholder="Send a message"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-700 placeholder-gray-500 focus:border-[#01a982] focus:outline-none focus:ring-2 focus:ring-[#01a982] focus:ring-opacity-50"
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Documents Panel - Always visible */}
-          <div className="w-80 bg-white shadow-lg border-l border-gray-200 flex flex-col">
-            <div className="p-4 border-b bg-gray-50">
-              <h3 className="text-lg font-semibold text-gray-900">Selected Documents</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {filteredDocuments.length > 0
-                  ? `${filteredDocuments.length} document${filteredDocuments.length > 1 ? 's' : ''} selected`
-                  : 'No documents selected'
-                }
-              </p>
-            </div>
+            {/* Documents Panel - Always visible */}
+            <div className="w-80 bg-white shadow-lg border-l border-gray-200 flex flex-col">
+              <div className="p-4 border-b bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900">Selected Documents</h3>
+                <p className="text-sm text-gray-300 mt-1">
+                  {filteredDocuments.length > 0
+                    ? `${filteredDocuments.length} document${filteredDocuments.length > 1 ? 's' : ''} selected`
+                    : 'No documents selected'
+                  }
+                </p>
+              </div>
 
-            {/* Documents List */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {filteredDocuments.length > 0 ? (
-                <div className="space-y-2">
-                  {filteredDocuments.map((entry) => (
-                    <div key={entry.guid} className="p-2 group relative flex items-start">
-                      {/* Document Icon */}
-                      <svg className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-
-                      {/* Document Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 break-words">{entry.filename}</div>
-                        {/* <div className="text-xs text-gray-500 mt-1">ID: {entry.guid.substring(0, 8)}...</div> */}
-                      </div>
-
-                      {/* Remove button */}
-                      <button
-                        onClick={() => {
-                          const updatedDocuments = selectedDocuments.map(doc =>
-                            doc.guid === entry.guid
-                              ? { ...doc, selected: false }
-                              : doc
-                          );
-                          setSelectedDocuments(updatedDocuments);
-                        }}
-                        className="p-1 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
-                      >
-                        <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              {/* Documents List */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {filteredDocuments.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredDocuments.map((entry) => (
+                      <div key={entry.guid} className="p-2 group relative flex items-start">
+                        {/* Document Icon */}
+                        <svg className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p className="text-sm text-gray-500 font-medium">No documents selected</p>
-                  <p className="text-xs text-gray-400 mt-2">Select documents from the dropdown above</p>
-                </div>
-              )}
+
+                        {/* Document Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 break-words">{entry.filename}</div>
+                          {/* <div className="text-xs text-gray-500 mt-1">ID: {entry.guid.substring(0, 8)}...</div> */}
+                        </div>
+
+                        {/* Remove button */}
+                        <button
+                          onClick={() => {
+                            const updatedDocuments = selectedDocuments.map(doc =>
+                              doc.guid === entry.guid
+                                ? { ...doc, selected: false }
+                                : doc
+                            );
+                            setSelectedDocuments(updatedDocuments);
+                          }}
+                          className="p-1 rounded hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                        >
+                          <svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <svg className="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm text-gray-500 font-medium">No documents selected</p>
+                    <p className="text-xs text-gray-400 mt-2">Select documents from the dropdown above</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
